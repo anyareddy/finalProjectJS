@@ -4,6 +4,7 @@ var mongoose = require('mongoose')
 var User = require('./db/models/user')
 var Playlists = require('./db/models/playlists')
 var bodyParser = require('body-parser')
+var cookieSession = require('cookie-session')
 var cors = require('cors')
 var querystring = require('querystring')
 var cookieParser = require('cookie-parser')
@@ -27,7 +28,6 @@ var generateRandomString = function(length) {
   return text;
 };
 
-
 var stateKey = 'spotify_auth_state';
 
 var app = express();
@@ -37,6 +37,13 @@ app.set('view engine', 'html')
 // Register body parser middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(
+  cookieSession({
+    name: 'local-session',
+    keys: ['spooky'],
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  })
+)
 
 app.use('/static', express.static(path.join(__dirname, 'static')))
    .use(cors())
@@ -96,7 +103,7 @@ app.get('/callback', function(req, res) {
 
         var access_token = body.access_token,
             refresh_token = body.refresh_token;
-
+        req.session.access_token = access_token
         var options = {
           url: 'https://api.spotify.com/v1/me',
           headers: { 'Authorization': 'Bearer ' + access_token },
@@ -106,6 +113,7 @@ app.get('/callback', function(req, res) {
         // use the access token to access the Spotify Web API
         request.get(options, function(error, response, body) {
           //console.log(body);
+          req.session.user = body.display_name
           var userObj = new User(
             {id: body.id, display_name: body.display_name, uri: body.uri, href: body.href, })
           userObj.save(function(err) {
@@ -121,11 +129,10 @@ app.get('/callback', function(req, res) {
         var playListObj;
         request.get(playlists, function(error, response, body) {
           for (var i = 0; i < body.total; i++) {
-            //console.log(body)
             playlistObj = new Playlists(
                 {id: body.items[i].id, name: body.items[i].name, owner: body.items[i].owner.display_name,
                 tracks: body.items[i].tracks.href, uri: body.items[i].uri});
-            //console.log(playlistObj)  
+            req.session.playlist = body.items[0].id
             var tracks = {
               url: ""+body.items[i].tracks.href ,
               headers: { 'Authorization': 'Bearer ' + access_token },
@@ -135,37 +142,19 @@ app.get('/callback', function(req, res) {
               var length = bod.items.length
               var song = [bod.items[length - 5].track.album.name, bod.items[length - 7].track.album.name, bod.items[length - 12].track.album.name]
               var artist = [bod.items[length - 5].track.artists[0].name, bod.items[length - 7].track.artists[0].name, bod.items[length - 12].track.artists[0].name]
+              var ids = [bod.items[length - 5].track.album.id, bod.items[length - 7].track.album.id, bod.items[length - 12].track.album.id]
               //console.log(bod.items[length - 5].)
               console.log(song)
               console.log(artist)
               playlistObj.songs = song
               playlistObj.artists = artist
+              playlistObj.ids = ids
               console.log(playlistObj)
               playlistObj.save(function(err) {
-            })
+             })
             })
           } 
         });
-        // Playlists.find({}, function(err, results) {
-        //   //console.log(results[results.length - 1].tracks)
-        //   var track = results[results.length - 1].tracks
-        //   //console.log(track)
-        //   var tracks = {
-        //       url: ""+track ,
-        //       headers: { 'Authorization': 'Bearer ' + access_token },
-        //       json: true
-        //     }
-        //     //console.log(track)
-        //   request.get(tracks, function(error, response, bod) {
-        //     //console.log(bod)
-        //   })
-        // })
-
-        var tracks = {
-          url: "https://api.spotify.com/v1/me/playlists",
-          headers: { 'Authorization': 'Bearer ' + access_token },
-          json: true
-        };
         // we can also pass the token to the browser to make requests from there
         res.redirect('/#' +
           querystring.stringify({
@@ -205,34 +194,32 @@ app.get('/refresh_token', function(req, res) {
     }
   });
 });
-// app.get('/hi', function(req, res, next) {
-//    Playlists.find({}, function(err, results) {
-//     if (!err) {
-//       res.json({ playlists: results})
-//     } else {
-//       next(err)
-//     }
-//   })
-// })
-// app.get('/callback', function(req, res, next) {
-//   Playlists.find({}, function(err, results) {
-//     if (!err) {
-//       console.log(results)
-//       res.render('index', { playlists: results, })
-//     } else {
-//       next(err)
-//     }
-//   })
-// })
 
-app.get('/playlist', function (req, res, next) {
-  var tracks = req
-  res.render('playlist', { playlists: tracks, })
+
+app.post('/playlist', function (req, res, next) {
    request.get(tracks, function(err, response, bod) {
     res.render('playlist', { playlists: bod, })
   })
-  if (err) next(err)
-    res.json({ playlists: req})
+  res.json({ playlists: tracks})
+})
+
+app.post('/tracks', function (req, res, next) {
+  var { track } = req.body.song
+  var playlist = req.session.playlist
+  console.log(req.body)
+  console.log(playlist)
+  var add = {
+    url: 'https://api.spotify.com/v1/playlists/'+playlist+'/tracks',
+    headers: { 'Authorization': 'Bearer ' + req.session.access_token },
+    uris: track,
+    json: true
+  }
+  request.post(add, function(error, response, body) {
+    if (!error && response.statusCode === 200) {
+      response.json({ success: 'OK' })
+    }
+  });
+  
 })
 
 app.get('/home', function(req, res, next) {
@@ -258,9 +245,6 @@ app.get('/playlists', function(req, res, next) {
     }
   })
 })
-
-
-
 
 
 // Load the api router onto app

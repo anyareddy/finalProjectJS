@@ -1,7 +1,9 @@
 <html>
   <head>
     <h1>Playlists</h1>
-    <h2> <button class="logout" id="lgout"> Log Out </button> </h2>
+    <h2>
+    <button class="logout" id="lgout"> Log Out </button> </h2>
+    <h3>Click Songs to add them to your own Playlist! </h3>
     <script src="/static/scripts/lib/jquery.min.js"></script>
     <script src="/static/scripts/main.js"></script>
     <link rel="stylesheet" type="text/css" href="/static/styles/styles.css"/>
@@ -15,8 +17,8 @@
           <div class = "box" > 
             <p ><%= p.owner %> </p>
             <button class="btn" type="submit" id=<%= p.name %>>Playlist: <%= p.name %></button>
-            <% if (p.songs != undefined) { %>
-            <p> Song Preview: <%= p.songs[0] %> by <%= p.artists[0] %> , <%= p.songs[1] %> by <%= p.artists[1] %> , <%= p.songs[2] %> by <%= p.artists[2] %> </p>
+            <% if (p.ids != undefined) { %>
+            <p> Song Preview: <button class="btn" type="submit" id=<%= p.ids[0] %>><%= p.songs[0] %> by <%= p.artists[0] %></button> <button class="btn" type="submit" id=<%= p.ids[1] %>><%= p.songs[1] %> by <%= p.artists[1] %></button> <button class="btn" type="submit" id=<%= p.ids[2] %>><%= p.songs[2] %> by <%= p.artists[2] %></button></p>
            <% } %>
           </div>
           <% }) 

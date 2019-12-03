@@ -7,7 +7,8 @@ var playlistSchema = new mongoose.Schema({
   tracks: {type: String},
   uri: {type: String},
   songs: {type: Object},
-  artists: {type: Object}
+  artists: {type: Object},
+  ids: {type: Object}
 })
 
 module.exports = mongoose.model('Playlist', playlistSchema)

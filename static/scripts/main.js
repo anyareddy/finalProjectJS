@@ -16,16 +16,6 @@ $(document).ready(function() {
     	})
 	}
 
-	function getTracks() {
-	  $.ajax({
-      	url: '/playlist',
-      	data: { tracks: current},
-      	type: 'POST',
-      	success: function(res) {
-          console.log(res)
-        }
-      })
-	}
 
 	var buttons = document.getElementsByTagName('button')
 	console.log(buttons)
@@ -37,19 +27,34 @@ $(document).ready(function() {
       		var pList = data[j]
       		//console.log(pList)
       		  if (pList.name === id) {
-      			// var tracks = {
-         //      	url: ""+pList.tracks ,
-         //      	headers: { 'Authorization': 'Bearer ' + 'BQD4tzu2iW0Oi8_ucrLXisVqpNNlUTmnbYKInnV2kZ8RRMHvfygUIc3ZOrCTmzZlrs9ZwadLvUrmkiAqXNBhYT4fOV5pmzoxU3nnYwp3UOcSJvIPXnzbyGNzxLoNQp-0ULBNe6zbdy3UBThcQWfQHREbXoPZ&refresh_token=AQCa7zs2FuCPFao_YPAnQnweS4iAjBAJLXuCdHWltsLEZn93eDAiI90-gM50AvcU6sDxprBDHo2ciPpFSSUlMIOUL0xgCnYu2GCRWToqbUyIy3Sf-cSwNYiUDbHpWsVJldw' },
-         //      	json: true
-         //    	}
-         //    	current = tracks
-         //      getTracks()
-            	// window.location.href = '/playlist';
-             //  return false;
-      			}
+      			var track = {
+              	url: ""+pList.tracks ,
+              	headers: { 'Authorization': 'Bearer ' + 'BQD4tzu2iW0Oi8_ucrLXisVqpNNlUTmnbYKInnV2kZ8RRMHvfygUIc3ZOrCTmzZlrs9ZwadLvUrmkiAqXNBhYT4fOV5pmzoxU3nnYwp3UOcSJvIPXnzbyGNzxLoNQp-0ULBNe6zbdy3UBThcQWfQHREbXoPZ&refresh_token=AQCa7zs2FuCPFao_YPAnQnweS4iAjBAJLXuCdHWltsLEZn93eDAiI90-gM50AvcU6sDxprBDHo2ciPpFSSUlMIOUL0xgCnYu2GCRWToqbUyIy3Sf-cSwNYiUDbHpWsVJldw' },
+              	json: true
+            	}
+              console.log(track)
+              $.ajax({
+              url: '/playlist',
+              data: { tracks: track},
+              type: 'POST',
+              success: function(res) {
+              console.log(res)
+            }
+          })
+      			} else if (i >= 23) {
+                $.ajax({
+                url: '/tracks',
+                data: { song: id},
+                type: 'POST',
+                success: function(res) {
+                console.log(res)
+              }
+            })
+            }
       		}
     	})
 	}
+
   $('#homepage').click(function() {
       window.location.href = '/home';
       return false;
