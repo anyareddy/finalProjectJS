@@ -1,60 +1,80 @@
 var express = require('express')
-var bodyParser = require('body-parser')
-var mongoose = require('mongoose')
 var request = require('request')
-var cors = require('cors');
-var querystring = require('querystring');
-var cookieParser = require('cookie-parser');
+var mongoose = require('mongoose')
+var User = require('./db/models/user')
+var Playlists = require('./db/models/playlists')
+var bodyParser = require('body-parser')
+var cors = require('cors')
+var querystring = require('querystring')
+var cookieParser = require('cookie-parser')
+const path = require('path')
+var apiRouter = require('./routes/apiRouter.js')
 
 var client_id = '9c20170c02cc42a2ae8e2108ce57fda3'
 var client_secret = 'da928e2382c24712b3c45aa8123c1b32'
-var redirect_uri = 'http://localhost:3000'
+var redirect_uri = 'http://localhost:8888/callback'
+
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1' || '127.0.0.1')
+
 
 var generateRandomString = function(length) {
-  var text = ''
+  var text = '';
   var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
   for (var i = 0; i < length; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
-  return text
-}
+  return text;
+};
 
 
-var app = express()
+var stateKey = 'spotify_auth_state';
 
-app.use(express.static(__dirname + '/public'))
+var app = express();
+app.engine('html', require('ejs').__express)
+app.set('view engine', 'html')
+
+// Register body parser middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use('/static', express.static(path.join(__dirname, 'static')))
    .use(cors())
-   .use(cookieParser())
-
+   .use(cookieParser());
 
 
 app.get('/login', function(req, res) {
 
-  var state = generateRandomString(16)
-  res.cookie(stateKey, state)
-  var scope = 'user-read-private user-read-email'
+  var state = generateRandomString(16);
+  res.cookie(stateKey, state);
+
+  // your application requests authorization
+  var scope = 'user-read-private user-read-email';
   res.redirect('https://accounts.spotify.com/authorize?' +
     querystring.stringify({
       response_type: 'code',
       client_id: client_id,
       scope: scope,
       redirect_uri: redirect_uri,
-      state: state
-    }))
-})
+      state: state,
+      show_dialog: true
+    }));
+});
 
 app.get('/callback', function(req, res) {
 
-  var code = req.query.code || null
-  var state = req.query.state || null
-  var storedState = req.cookies ? req.cookies[stateKey] : null
+  // your application requests refresh and access tokens
+  // after checking the state parameter
+
+  var code = req.query.code || null;
+  var state = req.query.state || null;
+  var storedState = req.cookies ? req.cookies[stateKey] : null;
 
   if (state === null || state !== storedState) {
     res.redirect('/#' +
       querystring.stringify({
         error: 'state_mismatch'
-      }))
+      }));
   } else {
     res.clearCookie(stateKey);
     var authOptions = {
@@ -68,7 +88,8 @@ app.get('/callback', function(req, res) {
         'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64'))
       },
       json: true
-    }
+    };
+
 
     request.post(authOptions, function(error, response, body) {
       if (!error && response.statusCode === 200) {
@@ -84,9 +105,67 @@ app.get('/callback', function(req, res) {
 
         // use the access token to access the Spotify Web API
         request.get(options, function(error, response, body) {
-          console.log(body);
+          //console.log(body);
+          var userObj = new User(
+            {id: body.id, display_name: body.display_name, uri: body.uri, href: body.href, })
+          userObj.save(function(err) {
+          })
         });
+        
 
+        var playlists = {
+          url: "https://api.spotify.com/v1/me/playlists",
+          headers: { 'Authorization': 'Bearer ' + access_token },
+          json: true
+        };
+        var playListObj;
+        request.get(playlists, function(error, response, body) {
+          for (var i = 0; i < body.total; i++) {
+            //console.log(body)
+            playlistObj = new Playlists(
+                {id: body.items[i].id, name: body.items[i].name, owner: body.items[i].owner.display_name,
+                tracks: body.items[i].tracks.href, uri: body.items[i].uri});
+            //console.log(playlistObj)  
+            var tracks = {
+              url: ""+body.items[i].tracks.href ,
+              headers: { 'Authorization': 'Bearer ' + access_token },
+              json: true
+            }
+            request.get(tracks, function(error, response, bod) {
+              var length = bod.items.length
+              var song = [bod.items[length - 5].track.album.name, bod.items[length - 7].track.album.name, bod.items[length - 12].track.album.name]
+              var artist = [bod.items[length - 5].track.artists[0].name, bod.items[length - 7].track.artists[0].name, bod.items[length - 12].track.artists[0].name]
+              //console.log(bod.items[length - 5].)
+              console.log(song)
+              console.log(artist)
+              playlistObj.songs = song
+              playlistObj.artists = artist
+              console.log(playlistObj)
+              playlistObj.save(function(err) {
+            })
+            })
+          } 
+        });
+        // Playlists.find({}, function(err, results) {
+        //   //console.log(results[results.length - 1].tracks)
+        //   var track = results[results.length - 1].tracks
+        //   //console.log(track)
+        //   var tracks = {
+        //       url: ""+track ,
+        //       headers: { 'Authorization': 'Bearer ' + access_token },
+        //       json: true
+        //     }
+        //     //console.log(track)
+        //   request.get(tracks, function(error, response, bod) {
+        //     //console.log(bod)
+        //   })
+        // })
+
+        var tracks = {
+          url: "https://api.spotify.com/v1/me/playlists",
+          headers: { 'Authorization': 'Bearer ' + access_token },
+          json: true
+        };
         // we can also pass the token to the browser to make requests from there
         res.redirect('/#' +
           querystring.stringify({
@@ -97,14 +176,16 @@ app.get('/callback', function(req, res) {
         res.redirect('/#' +
           querystring.stringify({
             error: 'invalid_token'
-          }))
+          }));
       }
-    })
+    });
   }
-})
+});
 
 app.get('/refresh_token', function(req, res) {
-  var refresh_token = req.query.refresh_token
+
+  // requesting access token from refresh token
+  var refresh_token = req.query.refresh_token;
   var authOptions = {
     url: 'https://accounts.spotify.com/api/token',
     headers: { 'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64')) },
@@ -113,22 +194,81 @@ app.get('/refresh_token', function(req, res) {
       refresh_token: refresh_token
     },
     json: true
-  }
+  };
 
   request.post(authOptions, function(error, response, body) {
     if (!error && response.statusCode === 200) {
       var access_token = body.access_token;
       res.send({
         'access_token': access_token
-      })
+      });
+    }
+  });
+});
+// app.get('/hi', function(req, res, next) {
+//    Playlists.find({}, function(err, results) {
+//     if (!err) {
+//       res.json({ playlists: results})
+//     } else {
+//       next(err)
+//     }
+//   })
+// })
+// app.get('/callback', function(req, res, next) {
+//   Playlists.find({}, function(err, results) {
+//     if (!err) {
+//       console.log(results)
+//       res.render('index', { playlists: results, })
+//     } else {
+//       next(err)
+//     }
+//   })
+// })
+
+app.get('/playlist', function (req, res, next) {
+  var tracks = req
+  res.render('playlist', { playlists: tracks, })
+   request.get(tracks, function(err, response, bod) {
+    res.render('playlist', { playlists: bod, })
+  })
+  if (err) next(err)
+    res.json({ playlists: req})
+})
+
+app.get('/home', function(req, res, next) {
+  // TODO: render out an index.html page with questions (queried from db)
+  //       also pass to ejs template a user object so we can conditionally
+  //       render the submit box
+    Playlists.find({}, function(err, results) {
+      if (!err) {
+        res.render('home', { playlists: results, })
+      } else {
+        next(err)
+      }
+    })
+})
+
+
+app.get('/playlists', function(req, res, next) {
+   Playlists.find({}, function(err, results) {
+    if (!err) {
+      res.json({ playlists: results})
+    } else {
+      next(err)
     }
   })
 })
 
-app.use(function(err, _, res,_) {
-  return res.send('ERROR :  ' + err.message)
-})
 
-app.listen(process.env.PORT || 3000, function() {
-  console.log('App listening on port ' + (process.env.PORT || 3000))
-})
+
+
+
+// Load the api router onto app
+//app.use('/apiRouter', apiRouter)
+
+// Any non-api routes should be sent the html file as a response
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'FinalProject/views', 'index.html'));
+});
+
+app.listen(8888, () => console.log('listening...'));

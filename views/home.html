@@ -1,0 +1,28 @@
+<html>
+  <head>
+    <h1>Playlists</h1>
+    <h2> <button class="logout" id="lgout"> Log Out </button> </h2>
+    <script src="/static/scripts/lib/jquery.min.js"></script>
+    <script src="/static/scripts/main.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/styles/styles.css"/>
+  </head>
+  <body>
+    <div class="main-body">
+      <div class="left-col">
+	     <ul id="questions">
+          <% if (typeof playlists == 'object') { %>
+          <% playlists.forEach(function(p) { %>
+          <div class = "box" > 
+            <p ><%= p.owner %> </p>
+            <button class="btn" type="submit" id=<%= p.name %>>Playlist: <%= p.name %></button>
+            <% if (p.songs != undefined) { %>
+            <p> Song Preview: <%= p.songs[0] %> by <%= p.artists[0] %> , <%= p.songs[1] %> by <%= p.artists[1] %> , <%= p.songs[2] %> by <%= p.artists[2] %> </p>
+           <% } %>
+          </div>
+          <% }) 
+          } %>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>
