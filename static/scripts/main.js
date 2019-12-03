@@ -25,7 +25,6 @@ $(document).ready(function() {
 		$(p).on('click', function() {
       	  for (var j = 8; j < data.length; j++) {
       		var pList = data[j]
-      		//console.log(pList)
       		  if (pList.name === id) {
       			var track = {
               	url: ""+pList.tracks ,
@@ -42,6 +41,7 @@ $(document).ready(function() {
             }
           })
       			} else if (i >= 23) {
+                console.log(id)
                 $.ajax({
                 url: '/tracks',
                 data: { song: id},
