@@ -1,1 +1,1 @@
-# finalProjectJS
+# Spotify Watch
